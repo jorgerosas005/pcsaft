@@ -1,16 +1,20 @@
-"""Density and Psat two ways: this package vs Milton's (Diego's) method.
+"""Density and Psat two ways: this package vs Milton's residual, no spinodal.
 
     py scripts\\05_two_methods.py
 
+Both solve the same two equations with brentq. They differ in the residual
+used for the density and in where the brackets come from.
+
 OURS
-    density : brentq on  P_EoS(eta) - P,  brackets from the spinodal / a scan
-    Psat    : brentq on  ln phi_L - ln phi_V,  pressure window from the spinodal
+    density : P_EoS(eta) - P = 0
+    Psat    : ln phi_L(T, P) - ln phi_V(T, P) = 0
+    brackets: from the spinodal
 
 MILTON
-    density : Newton on a Z residual, starting from eta = 0.5 (liquid)
-              or 1e-10 (vapour), the values in Gross & Sadowski 2001
-    Psat    : successive substitution  P_new = P * phi_L / phi_V
-              starting from a guessed pressure P0
+    density : 1 - Z_PV / Z_EoS = 0
+    Psat    : ln phi_L(T, P) - ln phi_V(T, P) = 0
+    brackets: from scanning, eta between 1e-10 and 0.7405, P between 1 Pa
+              and 1000 bar. No spinodal.
 
 Change only the CONFIG block.
 """
@@ -18,7 +22,9 @@ Change only the CONFIG block.
 import warnings
 warnings.filterwarnings("ignore")
 
+import time
 import numpy as np
+from scipy.optimize import brentq
 import pcsaft
 from pcsaft.eos import Z_hc, Z_disp
 from pcsaft.constants import kB
@@ -27,7 +33,6 @@ from pcsaft.constants import kB
 COMPOUND = "ethane"
 T = 273.15        # K
 P = 1.0e5         # Pa, for the density
-P0 = 1.0e5        # Pa, Milton's starting guess for Psat
 # ========================================================================
 
 c = pcsaft.get(COMPOUND)
@@ -35,73 +40,104 @@ c = pcsaft.get(COMPOUND)
 
 # ----------------------------------------------------------- Milton's way
 
-def residual(eta, T, P):
-    """Zero when the EoS and PV/RT give the same Z."""
+def Z_eos(eta, T):
     rho = pcsaft.eta_to_rho(eta, T, c)
-    Z_eos = 1 + Z_hc(T, rho, c) + Z_disp(T, rho, c)
+    return 1 + Z_hc(T, rho, c) + Z_disp(T, rho, c)
+
+
+def residual(eta, T, P):
+    """Milton's density residual. Zero when the EoS and PV/RT give the same Z."""
+    rho = pcsaft.eta_to_rho(eta, T, c)
     Z_pv = P / (rho * 1e30 * kB * T)
-    return Z_eos - Z_pv
-    # Milton writes it as  1 - Z_pv / Z_eos  (same root).
-    # Swap the line above for that one and Newton never finds the liquid
-    # from eta = 0.5: it is almost flat there, and the first step flies off.
+    return 1 - Z_pv / Z_eos(eta, T)
+
+
+def roots_milton(T, P):
+    """Every eta where the residual is zero, smallest first.
+
+    Scan eta from the paper's vapour start (1e-10) to closest packing (0.7405)
+    and solve each sign change with brentq.
+
+    The residual has poles wherever Z_EoS = 0, and one of them sits just below
+    the liquid root. If the pole and the root fall between the same two grid
+    points, the residual changes sign twice there and the scan sees nothing:
+    the liquid root is lost. So first locate the poles and split the grid at
+    each one, then never bracket across a pole.
+    """
+    etas = list(np.logspace(-10, np.log10(0.7405), 600))
+    z = [Z_eos(e, T) for e in etas]
+    for k in range(len(etas) - 1):
+        if z[k] * z[k + 1] < 0:
+            pole = brentq(Z_eos, etas[k], etas[k + 1], args=(T,), xtol=1e-16)
+            etas += [pole * (1 - 1e-9), pole * (1 + 1e-9)]
+    etas = np.sort(etas)
+
+    z = [Z_eos(e, T) for e in etas]
+    r = [residual(e, T, P) for e in etas]
+    roots = []
+    for k in range(len(etas) - 1):
+        crosses_pole = z[k] * z[k + 1] < 0
+        if r[k] * r[k + 1] < 0 and not crosses_pole:
+            roots.append(brentq(residual, etas[k], etas[k + 1], args=(T, P), xtol=1e-16))
+    return roots
 
 
 def density_milton(T, P, phase):
-    """Newton from the paper's starting values. Returns (eta, iterations)."""
-    eta = 0.5 if phase == "liquid" else 1e-10
-    for k in range(100):
-        h = 1e-6 * eta
-        slope = (residual(eta + h, T, P) - residual(eta - h, T, P)) / (2 * h)
-        new = eta - residual(eta, T, P) / slope
-        if not 0 < new < 0.7405:
-            return None, k
-        if abs(new - eta) < 1e-12 * eta:
-            return new, k + 1
-        eta = new
-    return None, 100
+    roots = roots_milton(T, P)
+    if not roots:
+        return None
+    return roots[-1] if phase == "liquid" else roots[0]
 
 
-def psat_milton(T, P0):
-    """Successive substitution. Returns (Psat, eta_L, eta_V, iterations)."""
-    P = P0
-    for k in range(500):
-        eL, _ = density_milton(T, P, "liquid")
-        eV, _ = density_milton(T, P, "vapour")
-        if eL is None or eV is None or abs(eL - eV) < 1e-8:
-            return None, None, None, k    # no liquid root at this P
-        lnphiL = pcsaft.ln_fugacity_coefficient(T, pcsaft.eta_to_rho(eL, T, c), c)
-        lnphiV = pcsaft.ln_fugacity_coefficient(T, pcsaft.eta_to_rho(eV, T, c), c)
-        P_new = P * np.exp(lnphiL - lnphiV)
-        if abs(P_new / P - 1) < 1e-10:
-            return P_new, eL, eV, k + 1
-        P = P_new
-    return None, None, None, 500
+def f(P, T):
+    """ln phi_L - ln phi_V.  None if the liquid and the vapour root are the same."""
+    roots = roots_milton(T, P)
+    if len(roots) < 2:
+        return None
+    rho_l = pcsaft.eta_to_rho(roots[-1], T, c)
+    rho_v = pcsaft.eta_to_rho(roots[0], T, c)
+    return pcsaft.ln_fugacity_coefficient(T, rho_l, c) - pcsaft.ln_fugacity_coefficient(T, rho_v, c)
+
+
+def psat_milton(T):
+    """Walk up in P until f changes from + to -, then brentq on that interval.
+
+    Below Psat the liquid is the metastable phase, so f > 0; above it f < 0.
+    Where only one root exists, f is meaningless and the point is skipped.
+    """
+    Ps = np.logspace(0, 8, 401)          # 1 Pa to 1000 bar
+    last_P, last_f = None, None
+    for p in Ps:
+        val = f(p, T)
+        if val is None or not np.isfinite(val):
+            continue
+        if last_f is not None and last_f > 0 and val < 0:
+            return brentq(lambda x: f(x, T), last_P, p, xtol=1e-6, rtol=1e-12)
+        last_P, last_f = p, val
+    return None
 
 
 # ------------------------------------------------------------------ run
 
-print(f"{COMPOUND}   T = {T} K   P = {P/1e5:g} bar   P0 = {P0/1e5:g} bar\n")
+print(f"{COMPOUND}   T = {T} K   P = {P/1e5:g} bar\n")
 
-print("DENSITY             eta            rho [kg/m3]   Newton its")
+print("DENSITY             eta            rho [kg/m3]")
 for phase in ("liquid", "vapour"):
     r = pcsaft.density(T, P, c, phase)
     print(f"  ours    {phase:7s} {pcsaft.packing_fraction(T, r, c):.10f}  {c.mass_density(r):12.4f}")
-    e, k = density_milton(T, P, phase)
+    e = density_milton(T, P, phase)
     if e is None:
-        print(f"  Milton  {phase:7s} did not converge")
+        print(f"  Milton  {phase:7s} no root found")
     else:
-        print(f"  Milton  {phase:7s} {e:.10f}  {c.mass_density(pcsaft.eta_to_rho(e, T, c)):12.4f}   {k:4d}")
+        print(f"  Milton  {phase:7s} {e:.10f}  {c.mass_density(pcsaft.eta_to_rho(e, T, c)):12.4f}")
 
-print("\nPSAT                Psat [bar]     eta_L          eta_V          its")
+print("\nPSAT                Psat [bar]        time")
+t0 = time.time()
 sat = pcsaft.saturation(T, c)
-if sat is None:
-    print("  ours    above Tc")
-else:
-    Ps, rl, rv = sat
-    print(f"  ours    {Ps/1e5:14.8f}  {pcsaft.packing_fraction(T, rl, c):.10f}  "
-          f"{pcsaft.packing_fraction(T, rv, c):.6e}")
-Ps, eL, eV, k = psat_milton(T, P0)
-if Ps is None:
-    print(f"  Milton  failed: no liquid root at P0 = {P0/1e5:g} bar. Try a P0 closer to Psat.")
-else:
-    print(f"  Milton  {Ps/1e5:14.8f}  {eL:.10f}  {eV:.6e}  {k:4d}")
+t_ours = time.time() - t0
+print("  ours    above Tc" if sat is None else f"  ours    {sat[0]/1e5:16.10f}   {t_ours:6.2f} s")
+
+t0 = time.time()
+Ps = psat_milton(T)
+t_milton = time.time() - t0
+print("  Milton  not found" if Ps is None else f"  Milton  {Ps/1e5:16.10f}   {t_milton:6.2f} s")
