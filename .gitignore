@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# generated output - regenerate with the scripts, do not version
+figures/*.png
+figures/*.pdf
+results/*.csv
