@@ -4,27 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pcsaft"
-version = "0.1.0"
-description = "PC-SAFT equation of state, with a slot for a two-state association term"
+version = "0.2.0"
+description = "PC-SAFT for pure components: density and saturation pressure"
 requires-python = ">=3.9"
-dependencies = [
-    "numpy",
-    "scipy",
-    "pandas",
-    "matplotlib",
-]
-
-[project.optional-dependencies]
-dev = ["pytest"]
+dependencies = ["numpy"]
 
 [tool.setuptools.packages.find]
 include = ["pcsaft*"]
-
-[tool.pytest.ini_options]
-# Silence deprecation noise coming from inside matplotlib/pyparsing, which has
-# nothing to do with this project and makes a clean run hard to read.
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore:.*deprecated.*:UserWarning",
-    "ignore::RuntimeWarning",
-]

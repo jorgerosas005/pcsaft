@@ -134,7 +134,7 @@ def a_assoc(T, rho, comp):
     When that term is added, do NOT immediately derive its analytical density
     derivative. Add the energy here, get Z from `compressibility_numeric`, and
     only derive the analytical Z once the physics is confirmed. The two must
-    then agree, which is exactly the check in validation.check_consistency.
+    then agree.
     """
     if not comp.associating:
         return 0.0

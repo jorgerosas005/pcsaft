@@ -1,6 +1,6 @@
 @echo off
 REM Double-click this file to set the project up. It installs the package in
-REM editable mode and runs the test suite. Nothing here touches anything
+REM editable mode. Nothing here touches anything
 REM outside this folder.
 
 cd /d "%~dp0"
@@ -32,22 +32,14 @@ echo   Using: %PY%
 %PY% --version
 echo.
 
-echo   [1/3] installing the package (editable)...
+echo   installing the package (editable)...
 %PY% -m pip install -e . --quiet
-if errorlevel 1 goto failed
-
-echo   [2/3] installing pytest...
-%PY% -m pip install pytest --quiet
-if errorlevel 1 goto failed
-
-echo   [3/3] running the tests...
-echo.
-%PY% -m pytest tests -q
 if errorlevel 1 goto failed
 
 echo.
 echo   Done. The package is installed.
-echo   Try:   %PY% scripts\01_validate_hexane.py
+echo   Try:   %PY% scripts\density.py
+echo          %PY% scripts\saturation.py
 echo.
 pause
 exit /b 0
