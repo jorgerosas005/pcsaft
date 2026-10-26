@@ -35,6 +35,9 @@ class Component:
     aad_v: float = None          # AAD% in liquid volume reported by the source
     source: str = "Gross & Sadowski 2001, Table 2"
 
+    # Wagner 25 vapour pressure: (C1, C2, C3, C4, ln(Pc/Pa), Tc/K), filled from WAGNER25 below
+    wagner25: tuple = None
+
     @property
     def associating(self):
         return self.eps_assoc_k is not None
@@ -94,6 +97,30 @@ LIBRARY = {
     "benzene":        Component("benzene",        78.114, 2.4653, 3.6478, 287.35, T_range=(278, 562), aad_psat=0.64, aad_v=1.42),
     "cyclohexane":    Component("cyclohexane",    84.147, 2.5303, 3.8499, 278.11, T_range=(279, 553), aad_psat=0.53, aad_v=3.12),
 }
+
+# ---------------------------------------------------------------- Wagner 25
+
+# Initial estimate of Psat in equilibrium.saturation(). Same order as Aspen's
+# WAGNER25/1..6: C1, C2, C3, C4, ln(Pc / Pa), Tc / K.
+# PROVISIONAL: Tc and Pc are NIST values to be checked; C1..C4 are a least-squares
+# fit to NIST saturation data (AAD < 0.1 %). Replace with the Aspen values.
+WAGNER25 = {
+    "methane":  ( -6.02563,   1.27553,  -0.58561,  -1.33956, 15.341393, 190.564),
+    "ethane":   ( -6.47597,   1.40506,  -1.13514,  -1.83357, 15.399056, 305.322),
+    "propane":  ( -6.75432,   1.51780,  -1.51501,  -2.26582, 15.262712, 369.890),
+    "butane":   ( -7.08718,   1.80518,  -2.04055,  -2.22511, 15.149458, 425.125),
+    "pentane":  ( -7.33034,   1.86168,  -2.39243,  -2.44170, 15.030423, 469.700),
+    "hexane":   ( -7.51273,   1.78936,  -2.56396,  -3.02344, 14.925392, 507.820),
+    "heptane":  ( -7.83147,   2.01391,  -3.02631,  -3.31015, 14.822008, 540.130),
+    "octane":   ( -7.91418,   1.62396,  -2.61957,  -4.52734, 14.730601, 569.320),
+    "nonane":   ( -8.44693,   2.58323,  -4.22813,  -3.43963, 14.640125, 594.550),
+    "decane":   ( -8.63638,   2.56779,  -4.48981,  -3.69907, 14.558875, 617.700),
+    "dodecane": ( -8.98105,   2.43074,  -4.65153,  -5.30642, 14.412697, 658.100),
+}
+
+for name in WAGNER25:
+    LIBRARY[name].wagner25 = WAGNER25[name]
+
 
 # The n-alkane series in order, which is the homologous set the protocol asks
 # for. Used by scripts/02_validate_series.py.
