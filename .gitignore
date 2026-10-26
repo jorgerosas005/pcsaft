@@ -9,3 +9,4 @@ venv/
 figures/*.png
 figures/*.pdf
 results/*.csv
+build/
