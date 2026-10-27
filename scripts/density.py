@@ -6,13 +6,14 @@ import pcsaft
 COMPOUND = "ethane"
 T = 273.15      # K
 P = 1.0e5       # Pa
+VERBOSE = False # True prints every Newton iteration
 
 c = pcsaft.get(COMPOUND)
 print(f"{COMPOUND}   T = {T} K   P = {P/1e5:g} bar\n")
 print("phase      eta          rho [kg/m3]     Z")
 
 for phase in ("liquid", "vapour"):
-    rho = pcsaft.density(T, P, c, phase)                 # molecules / A^3
+    rho = pcsaft.density(T, P, c, phase, VERBOSE)        # molecules / A^3
     if rho is None:
         print(f"{phase:8s} no {phase} root at this (T, P)")
         continue

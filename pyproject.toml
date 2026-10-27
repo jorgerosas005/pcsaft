@@ -7,7 +7,7 @@ name = "pcsaft"
 version = "0.2.0"
 description = "PC-SAFT for pure components: density and saturation pressure"
 requires-python = ">=3.9"
-dependencies = ["numpy"]
+dependencies = ["numpy", "matplotlib"]
 
 [tool.setuptools.packages.find]
 include = ["pcsaft*"]

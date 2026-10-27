@@ -5,10 +5,11 @@ import pcsaft
 
 COMPOUND = "ethane"
 T = 250.0       # K
+VERBOSE = False # True prints every Newton iteration
 
 c = pcsaft.get(COMPOUND)
 P0 = pcsaft.wagner25(T, c)
-sat = pcsaft.saturation(T, c)
+sat = pcsaft.saturation(T, c, verbose=VERBOSE)
 
 print(f"{COMPOUND}   T = {T} K\n")
 if sat is None:

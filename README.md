@@ -13,8 +13,12 @@ or double-click `install.bat`.
 
 ## Use
 
-    py scripts\density.py       liquid and vapour density at (T, P)
-    py scripts\saturation.py    Psat and coexisting densities at T
+    py scripts\density.py           liquid and vapour density at (T, P)
+    py scripts\saturation.py        Psat and coexisting densities at T
+    py scripts\isotherm.py          P vs eta at T: the loop, spinodal, Psat and both roots
+    py scripts\saturation_curve.py  Psat, rho_L and rho_V over a range of T
+
+In density.py and saturation.py, VERBOSE = True prints every Newton iteration.
 
 ## Method
 
@@ -33,4 +37,4 @@ Wagner 25 constants are in `pcsaft/parameters.py` (provisional, to be replaced b
     pcsaft/parameters.py    compound parameters and Wagner 25 constants
     pcsaft/eos.py           the equation of state: a_res, Z, P, ln phi
     pcsaft/equilibrium.py   density() and saturation()
-    scripts/                density.py, saturation.py
+    scripts/                density.py, saturation.py, isotherm.py, saturation_curve.py

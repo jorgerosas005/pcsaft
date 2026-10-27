@@ -18,13 +18,16 @@ from .constants import ETA_MAX
 from .eos import eta_to_rho, pressure, compressibility, ln_fugacity_coefficient
 
 
-def density(T, P, comp, phase="liquid"):
+def density(T, P, comp, phase="liquid", verbose=False):
     """Density at (T, P) in molecules/A^3. phase is "liquid" or "vapour".
 
     Returns None if Newton does not converge or lands on the unstable branch
-    (dP/deta < 0).
+    (dP/deta < 0). verbose=True prints every iteration.
     """
     eta = 0.5 if phase.startswith("l") else 1e-10
+    if verbose:
+        print(f"  density, {phase}: Newton on P_EoS/P - 1 from eta = {eta:g}")
+        print("    k   eta               P_EoS/P - 1")
 
     for k in range(100):
         f = pressure(T, eta_to_rho(eta, T, comp), comp) / P - 1
@@ -33,6 +36,8 @@ def density(T, P, comp, phase="liquid"):
         f_minus = pressure(T, eta_to_rho(eta - h, T, comp), comp) / P - 1
         slope = (f_plus - f_minus) / (2 * h)
 
+        if verbose:
+            print(f"   {k:2d}   {eta:.10e}   {f: .3e}")
         step = -f / slope
         while not 0 < eta + step < ETA_MAX:          # stay inside 0 < eta < ETA_MAX
             step = step / 2
@@ -59,11 +64,12 @@ def wagner25(T, comp):
     return np.exp(ln_Pc + (C1 * tau + C2 * tau**1.5 + C3 * tau**2.5 + C4 * tau**5) / Tr)
 
 
-def saturation(T, comp, tol=1e-10):
+def saturation(T, comp, tol=1e-10, verbose=False):
     """Saturation pressure and the two coexisting densities at T.
 
     Returns (P_sat in Pa, rho_liquid, rho_vapour), densities in molecules/A^3,
     or None when there is no Wagner estimate or Newton fails.
+    verbose=True prints every iteration.
     """
     if comp.wagner25 is None:
         raise ValueError(f"No Wagner 25 constants for {comp.name} in parameters.WAGNER25.")
@@ -72,6 +78,9 @@ def saturation(T, comp, tol=1e-10):
     if P is None:
         return None
 
+    if verbose:
+        print(f"  saturation: P0 (Wagner 25) = {P/1e5:.6f} bar, Newton on g = ln phi_L - ln phi_V")
+        print("    k   P [bar]            g            dP/P")
     step_old = 1.0
     for k in range(50):
         rho_l = density(T, P, comp, "liquid")
@@ -83,6 +92,8 @@ def saturation(T, comp, tol=1e-10):
         Z_l = compressibility(T, rho_l, comp)
         Z_v = compressibility(T, rho_v, comp)
         step = g / (Z_v - Z_l)
+        if verbose:
+            print(f"   {k:2d}   {P/1e5:.10f}   {g: .3e}   {step: .3e}")
         if abs(step) < tol:
             return P, rho_l, rho_v
 
