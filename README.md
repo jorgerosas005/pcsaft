@@ -17,6 +17,7 @@ or double-click `install.bat`.
     py scripts\saturation.py        Psat and coexisting densities at T
     py scripts\isotherm.py          P vs eta at T: the loop, spinodal, Psat and both roots
     py scripts\saturation_curve.py  Psat, rho_L and rho_V over a range of T
+    py scripts\alkanes.py           all 11 n-alkanes: Psat, Clausius-Clapeyron, coexistence, dh_vap
 
 In density.py and saturation.py, VERBOSE = True prints every Newton iteration.
 
@@ -37,4 +38,4 @@ Wagner 25 constants are in `pcsaft/parameters.py` (provisional, to be replaced b
     pcsaft/parameters.py    compound parameters and Wagner 25 constants
     pcsaft/eos.py           the equation of state: a_res, Z, P, ln phi
     pcsaft/equilibrium.py   density() and saturation()
-    scripts/                density.py, saturation.py, isotherm.py, saturation_curve.py
+    scripts/                density.py, saturation.py, isotherm.py, saturation_curve.py, alkanes.py
