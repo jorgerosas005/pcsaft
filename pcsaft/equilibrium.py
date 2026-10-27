@@ -64,22 +64,24 @@ def wagner25(T, comp):
     return np.exp(ln_Pc + (C1 * tau + C2 * tau**1.5 + C3 * tau**2.5 + C4 * tau**5) / Tr)
 
 
-def saturation(T, comp, tol=1e-10, verbose=False):
+def saturation(T, comp, tol=1e-10, verbose=False, P0=None):
     """Saturation pressure and the two coexisting densities at T.
 
     Returns (P_sat in Pa, rho_liquid, rho_vapour), densities in molecules/A^3,
     or None when there is no Wagner estimate or Newton fails.
-    verbose=True prints every iteration.
+    verbose=True prints every iteration. P0 (Pa) replaces the Wagner 25 estimate,
+    e.g. the Psat of a nearby temperature when marching along the curve.
     """
-    if comp.wagner25 is None:
-        raise ValueError(f"No Wagner 25 constants for {comp.name} in parameters.WAGNER25.")
-
-    P = wagner25(T, comp)
-    if P is None:
-        return None
+    if P0 is None:
+        if comp.wagner25 is None:
+            raise ValueError(f"No Wagner 25 constants for {comp.name} in parameters.WAGNER25.")
+        P0 = wagner25(T, comp)
+        if P0 is None:
+            return None
+    P = P0
 
     if verbose:
-        print(f"  saturation: P0 (Wagner 25) = {P/1e5:.6f} bar, Newton on g = ln phi_L - ln phi_V")
+        print(f"  saturation: P0 = {P/1e5:.6f} bar, Newton on g = ln phi_L - ln phi_V")
         print("    k   P [bar]            g            dP/P")
     step_old = 1.0
     for k in range(50):
